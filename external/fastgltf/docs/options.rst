@@ -1,0 +1,143 @@
+*******
+Options
+*******
+
+.. contents:: Table of Contents
+
+CMake options
+=============
+
+All of the following CMake options simply define the corresponding macro for compilation.
+Therefore, when using another build system these compile definitions can simply be set to 0 or 1,
+and the fastgltf headers also define a fallback if undefined.
+However, you should not define any of those macros within your source files, since that would break compilation and/or linking.
+
+``FASTGLTF_USE_64BIT_FLOAT``
+----------------------------
+
+Instead of using a normal 32-bit ``float`` for all of the types the glTF spec refers to as ``num``,
+this option instead makes fastgltf use 64-bit ``double``.
+
+
+``FASTGLTF_ENABLE_CPP_MODULES``
+-------------------------------
+
+When this setting is ``YES`` the ``fastgltf::module`` target will be exposed, as long as the CMake script detects a compiler which supports modules.
+Note that this is currently not supported by all compilers and generators.
+See `the CMake docs <https://cmake.org/cmake/help/latest/manual/cmake-cxxmodules.7.html>`_ for more details.
+
+``FASTGLTF_USE_STD_MODULE``
+---------------------------
+
+This ``BOOL`` option makes the fastgltf C++ module import the std module, which is available since C++23.
+This can have further compiler time benefits, but is only experimentally supported with CMake 3.30 or newer, and only with some toolchains.
+Therefore, this option should be used with caution and issues are likely.
+
+
+``FASTGLTF_ENABLE_TESTS``
+-------------------------
+
+To build and run the tests and benchmarks you need to set this ``BOOL`` option to ``YES``.
+When this option is set, the ``fastgltf_tests`` target will be configured.
+The tests target depends on various dependencies, which will need to be downloaded before configuring CMake using ``fetch_test_deps.py``.
+
+
+``FASTGLTF_ENABLE_EXAMPLES``
+----------------------------
+
+To build and run the examples you need to this ``BOOL`` option to ``YES``.
+When this option is set, all targets from examples will be configured.
+The CMake targets depend on various dependencies, which will need to be downloaded before configuring CMake using ``fetch_test_deps.py``.
+
+
+``FASTGLTF_ENABLE_DOCS``
+------------------------
+
+.. _doxygen: https://https://www.doxygen.nl/
+.. _sphinx: https://github.com/sphinx-doc/sphinx
+.. _breathe: https://github.com/breathe-doc/breathe
+
+This ``BOOL`` option controls whether the targets and commands related to the documentation should be configured.
+Setting this to ``YES`` requires `Doxygen`_, `Sphinx`_ and `breathe`_ to be installed.
+
+
+``FASTGLTF_ENABLE_GLTF_RS``
+---------------------------
+
+.. _corrosion: https://github.com/corrosion-rs/corrosion/
+.. _gltf-rs: https://github.com/gltf-rs/gltf
+
+When this ``BOOL`` option is set to ``YES`` fastgltf will use `corrosion`_, which is downloaded using ``fetch_test_deps.py``,
+to link against the `gltf-rs`_ Rust library for comparison within the benchmarks.
+Note that this option has no effect when ``FASTGLTF_ENABLE_TESTS`` is set to ``NO``.
+
+Parsing options
+===============
+
+For more information about the options when parsing a file, see :ref:`the API reference<options>`.
+
+Loading external buffers and images
+-----------------------------------
+
+``Options::LoadExternalBuffers`` and ``Options::LoadExternalImages`` control
+whether the parser reads local files referenced by buffer and image URIs.
+They are independent: loading an external buffer does not also load external
+image files. Relative paths are resolved against the directory passed to
+``Parser::loadGltf``, ``loadGltfJson`` or ``loadGltfBinary``.
+
+The following table describes the ``DataSource`` returned after a successful
+parse, without custom buffer allocation callbacks:
+
+.. list-table:: Buffer and image data sources
+   :header-rows: 1
+   :widths: 40 30 30
+
+   * - Resource
+     - Corresponding option disabled
+     - Corresponding option enabled
+   * - Buffer URI pointing to a local file
+     - ``sources::URI``
+     - ``sources::Array``
+   * - Image URI pointing to a local file
+     - ``sources::URI``
+     - ``sources::Array``
+   * - Buffer or image with a base64 data URI
+     - ``sources::Array``
+     - ``sources::Array``
+   * - Buffer in the GLB binary chunk
+     - ``sources::Array``
+     - ``sources::Array``
+   * - Image referencing a buffer view
+     - ``sources::BufferView``
+     - ``sources::BufferView``
+   * - Buffer or image with a remote URI (for example, HTTPS)
+     - ``sources::URI``
+     - ``sources::URI``
+
+Embedded data is loaded independently of these options. In particular,
+``LoadExternalImages`` does not copy images out of buffer views: use the
+``bufferViewIndex`` to find the view and its backing buffer. If that buffer is
+an external file, ``LoadExternalBuffers`` controls whether it is loaded.
+fastgltf does not download remote resources; their URIs remain available for
+the application to handle.
+
+With ``Parser::setBufferAllocationCallback``, loaded data can instead be
+represented by ``sources::CustomBuffer`` when the map callback supplies memory.
+Consequently, neither option guarantees that every buffer or image has the
+``sources::Array`` alternative. Applications must handle the alternatives
+that their assets and allocation callbacks can produce.
+Assets using the ``EXT_meshopt_compression`` or ``KHR_meshopt_compression``
+extensions can also contain ``sources::Fallback`` buffers that have no data of
+their own.
+
+An enabled option makes a missing local file a parsing error
+(``Error::MissingExternalFile``), rather than leaving a URI for later loading.
+Always check the returned ``Expected<Asset>`` before accessing the asset.
+Loading an image reads its encoded bytes; it does not decode PNG, JPEG or other
+image formats into pixels.
+
+
+Exporting options
+=================
+
+For more information about the options when exporting a file, see :ref:`the API reference<exportoptions>`.
